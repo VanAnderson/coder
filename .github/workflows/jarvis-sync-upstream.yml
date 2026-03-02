@@ -1,0 +1,33 @@
+name: Jarvis Sync Upstream
+
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "jarvis-sync-bot"
+          git config user.email "jarvis-sync-bot@users.noreply.github.com"
+
+      - name: Add upstream and fetch
+        run: |
+          git remote add upstream https://github.com/coder/coder.git || true
+          git fetch upstream main
+
+      - name: Update upstream-main branch
+        run: |
+          git checkout -B upstream-main upstream/main
+          git push --force origin upstream-main

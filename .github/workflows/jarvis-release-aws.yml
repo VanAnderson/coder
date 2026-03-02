@@ -1,0 +1,55 @@
+name: Jarvis Release To AWS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || us-east-1 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build coder binary
+        run: |
+          GOOS=linux GOARCH=amd64 go build -o build/coder ./cmd/coder
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        id: image
+        env:
+          REPO_URL: ${{ secrets.ECR_CODER_REPOSITORY }}
+        run: |
+          TAG="${REPO_URL}:main-${GITHUB_SHA::12}"
+          ./scripts/build_docker.sh --arch amd64 --target "$TAG" --push ./build/coder
+          echo "image=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger SSM deploy
+        env:
+          DEPLOY_INSTANCE_ID: ${{ secrets.DEPLOY_INSTANCE_ID }}
+          IMAGE: ${{ steps.image.outputs.image }}
+        run: |
+          COMMANDS=set
