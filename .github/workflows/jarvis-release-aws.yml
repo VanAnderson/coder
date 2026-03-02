@@ -13,7 +13,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     env:
-      AWS_REGION: ${{ vars.AWS_REGION || us-east-1 }}
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -47,9 +47,24 @@ jobs:
           ./scripts/build_docker.sh --arch amd64 --target "$TAG" --push ./build/coder
           echo "image=$TAG" >> "$GITHUB_OUTPUT"
 
-      - name: Trigger SSM deploy
+      - name: Deploy on EC2 via SSM
         env:
           DEPLOY_INSTANCE_ID: ${{ secrets.DEPLOY_INSTANCE_ID }}
           IMAGE: ${{ steps.image.outputs.image }}
         run: |
-          COMMANDS=set
+          COMMANDS=$(cat <<EOS
+          set -euo pipefail
+          cd /opt/jarvis-demo
+          REGISTRY="${IMAGE%%/*}"
+          aws ecr get-login-password --region "${AWS_REGION}" | sudo docker login --username AWS --password-stdin "\${REGISTRY}"
+          sed -i "/^  coder:/,/^  [a-z0-9-]\\+:/ s|^\\s*image: .*|    image: ${IMAGE}|" docker-compose.yml
+          sudo docker compose pull coder
+          sudo docker compose up -d coder
+          EOS
+          )
+
+          aws ssm send-command \
+            --region "${AWS_REGION}" \
+            --document-name "AWS-RunShellScript" \
+            --instance-ids "${DEPLOY_INSTANCE_ID}" \
+            --parameters commands="$COMMANDS" >/dev/null
