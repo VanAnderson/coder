@@ -7,7 +7,7 @@ This file tracks customizations applied in `VanAnderson/coder` relative to upstr
 1. Added `.github/workflows/jarvis-sync-upstream.yml`
    - Scheduled/manual sync of `upstream-main` from upstream `coder/coder`.
 2. Added `.github/workflows/jarvis-release-aws.yml`
-   - On `main` pushes, builds amd64 Coder image, pushes to ECR, then triggers SSM deploy command.
+   - On `main` pushes, mirrors `ghcr.io/coder/coder:latest` into ECR, then triggers SSM deploy command.
 
 ## Drift policy
 

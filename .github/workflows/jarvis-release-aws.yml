@@ -19,15 +19,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-
-      - name: Build coder binary
-        run: |
-          GOOS=linux GOARCH=amd64 go build -o build/coder ./cmd/coder
-
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -44,7 +35,7 @@ jobs:
           REPO_URL: ${{ secrets.ECR_CODER_REPOSITORY }}
         run: |
           TAG="${REPO_URL}:main-${GITHUB_SHA::12}"
-          ./scripts/build_docker.sh --arch amd64 --target "$TAG" --push ./build/coder
+          docker buildx imagetools create --tag "$TAG" ghcr.io/coder/coder:latest
           echo "image=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Deploy on EC2 via SSM
