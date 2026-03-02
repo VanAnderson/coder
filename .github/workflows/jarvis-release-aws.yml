@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      CODER_SOURCE_IMAGE: ghcr.io/coder/coder:v2.30.2
     steps:
       - uses: actions/checkout@v4
         with:
@@ -35,7 +36,7 @@ jobs:
           REPO_URL: ${{ secrets.ECR_CODER_REPOSITORY }}
         run: |
           TAG="${REPO_URL}:main-${GITHUB_SHA::12}"
-          docker buildx imagetools create --tag "$TAG" ghcr.io/coder/coder:latest
+          docker buildx imagetools create --tag "$TAG" "${CODER_SOURCE_IMAGE}"
           echo "image=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Deploy on EC2 via SSM
